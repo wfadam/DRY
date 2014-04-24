@@ -3,6 +3,7 @@ set -u
 
 # The script is for saving/recovering current program setting 
 # Date: 10:38pm, 7/31/2013, Kunshan, China
+# Author: Feng WU
 
 conf=.wuconf
 
@@ -81,7 +82,7 @@ elif [[ $1 == 'r' ]]; then
 
 		echo -n "Are you sure to proceed ? (y/n) : "
 		read yn
-		[[ $yn == 'y' ]] && source $conf > /dev/null || exit
+		[[ $yn == 'y' ]] && source $conf && rm -f $conf > /dev/null || exit
 	else
 		echo "		NOT saved yet, please (Orz)"
 	fi
