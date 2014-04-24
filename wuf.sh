@@ -1,12 +1,10 @@
 #!/bin/bash
 set -u
 
-# The script is for program setup
-# Date: 11:04pm, 7/31/2013, Kunshan, China
-# Date: 05:04pm, 12/02/2013, Shanghai, China
-
 function errOut {
-	echo "$@"
+	echo
+	echo "Command exits due to $@"
+	echo
 	exit 1
 }
 
@@ -18,15 +16,27 @@ function getFlow {
 	fi
 }
 
-function testEnv {
-	if [[ `kwho` == *"not used"* ]]; then
-		echo "Kei System Software is NOT running"
-		return 1
+function isOffline {
+	[[ `kwho` == *"not used"* ]]
+}
+
+function isInUse {
+	currPWD=`kpwd  | tail -n 1`
+	currSTAT=`kstat  | tail -n 1`
+	if  [ "$currSTAT" == *"TESTING"* ] || [ "$currPWD" != `pwd` ]; then
+		echo
+		echo "============================== TESTER IN USE =============================="
+		echo "  $currPWD"
+		echo "  $currSTAT"
+		echo "==========================================================================="
+		echo
 	fi
+	[[ "$currSTAT" == *"TESTING"* ]]
 }
 
 function startEnv {
-	rm -rf .atfsutu
+	rm -rf .atfsutu/
+	rm -rf ../.metadata/
 	echo -n "Starting "
 	startk >/dev/null && (utu_cpnl &>/dev/null& utu_tt &>/dev/null&)
 }
@@ -39,17 +49,19 @@ function recover {
 function setDlog {
 	flow="$1"
 	pro="$2"
+	time=`date +%m%d%H%M`
 
-	time=`date +%m%d%H%M` 
-	ksplogend  &>/dev/null
-	kerrlogend &>/dev/null
+	dir="./"
 	if [ -d "datalogs" ]; then
-		ksplogstart datalogs "$flow"_"$pro"_"$time"
-		kerrlogstart datalogs ."$flow"_"$pro"_"$time" &>/dev/null
-	else
-		ksplogstart . "$flow"_"$pro"_"$time"
-		kerrlogstart . ."$flow"_"$pro"_"$time" &>/dev/null
+		dir="datalogs/"
 	fi
+
+	rm -f "$dir".*{err,RTE}.txt
+	ksplogend &>/dev/null
+	kerrlogend &>/dev/null
+
+	ksplogstart  "$dir" "$flow"_"$pro"_"$time"
+	kerrlogstart "$dir" ."$flow"_"$pro"_"$time" &>/dev/null
 
 	klog --dc on &>/dev/null
 }
@@ -66,44 +78,54 @@ function setSoc {
 
 function setSysVar {
 	ksystemvariable --add ECOTS_SD_DATALOGDISP ON \
-			--add ECOTS_SD_STEP "$flowName" \
-	                --add ECOTS_SD_RESCREEN 0
+		--add ECOTS_SD_STEP "$flowName" \
+		--add ECOTS_SD_RESCREEN 0
 }
 
+function readyToStart {
+	pwd
+	echo -n "__100%__ sure to start testing ? (y/n) : "
+	read yn
+	[ 'y' == $yn ]
+}
+
+function verifyProgram {
+	# Verify program package
+	[ -f javaapi/"$classFile"                ] || errOut "missing javaapi/ or class file !!"
+	[ 1 -eq `ls javaapi/${wildName} | wc -w` ] || errOut "more than one entry classes are found : " `ls javaapi/${wildName}`
+	[ -f "$proName".soc                      ] || errOut "missing socket file : "$proName".soc !!"
+}
+
+
 ################ Start Execution ##################
-testEnv || startEnv
+isOffline && startEnv 
+isInUse && errOut "program is testing"
 
-# Parse program name
-wildName=`basename $PWD`*.class
-classFile=`basename javaapi/${wildName}`
-proName=`basename "$classFile" .class`	#another method ${classFile%.*}
-
-# Verify program package
-[    -f javaapi/"$classFile"             ] || errOut "Missing javaapi/ or class file !!"
-[ 1 -eq `ls javaapi/${wildName} | wc -w` ] || errOut "More than one main classes are found : " `ls javaapi/${wildName}`
-[    -f "$proName".soc                   ] || errOut "Missing socket file : "$proName".soc !!"
-
-# Save current Kei setting
-wu s
-
-# Setup
-flowName="FH"
-[ $# -ne "0" ] && flowName=`getFlow "$1"`
-
-setDlog "$flowName" "$proName"
-setSysVar &>/dev/null
-
-kcd $PWD &>/dev/null
-kproset javaapi."$proName".class &>/dev/null
-setSoc "$proName" &>/dev/null
-
-# Start testing
-echo -n "Are you sure to start testing ? (y/n) : "
-read yn
-if [ $yn == 'y' ]; then
+readyToStart
+if [ $? -eq 0 ]; then
+	
+	# Parse Information
+	wildName=`basename $PWD`*.class
+	classFile=`basename javaapi/${wildName}`
+	proName=`basename "$classFile" .class`	#another method ${classFile%.*}
+	
+	verifyProgram
+	wu s	# save current session
+	
+	flowName="FH"
+	[ $# -ne "0" ] && flowName=`getFlow "$1"`
+	
+	setDlog "$flowName" "$proName"
+	setSysVar &>/dev/null
+	
+	kcd $PWD &>/dev/null
+	kproset javaapi."$proName".class &>/dev/null
+	setSoc "$proName" &>/dev/null
+	
 	kproreset && kclear && kprostart &
 	sleep 1
 	echo "Test program is started ... "
 fi
 
 ####################### END #######################
+
