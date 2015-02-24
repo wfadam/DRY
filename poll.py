@@ -10,12 +10,12 @@ machines = ['es2', 'es10', 'es13', 'es14', 'es18', 'es19', 'es21', 'es22', 'es23
 def login(host):
 	child = pexpect.spawn ('ssh root@'+host, timeout=1)
 	i = child.expect (['yes','assword'])
-	if i==0:
+	if i==0: # first time login
 		child.sendline ('yes')
 		child.expect ('assword')
-		child.sendline ('*')	#input passwd
+		child.sendline ('*')
 	elif i==1:
-		child.sendline ('*')	#input passwd
+		child.sendline ('*')
 	child.expect ('Last login')
 	return child
 
