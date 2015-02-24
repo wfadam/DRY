@@ -1,101 +1,82 @@
 #!/bin/bash
-set -u
 
-# The script is for saving/recovering current program setting 
-# Date: 10:38pm, 7/31/2013, Kunshan, China
+# The script is for program config saving/recovering
 # Author: Feng WU
+# Rev 0.1	11:04pm, 7/31/2013, Kunshan, China
+# Rev 0.2	05:04pm, 12/02/2013, Shanghai, China
+# Rev 0.3	01:08am, 10/03/2014, Kunshan, China
+#		Refactored
 
-conf=.wuconf
 
-function help {
-	self=`basename $0`
+readonly conf=.wuconf
+
+function saveToFile {
+	local currKPWD=`kpwd | tail -n 1`
+	[ "$currKPWD" == "$PWD" ] && return 0
+
+	local currSESN=`kwho | awk '/since/{print $1}'`
+	local currPRO=`kproset | tail -n 1`
+	local currSOC=`kselectsocket | tail -n 1`
+	local currLogFile=`ksplogstatus | awk '/\<Sys\>/{print $5}'`
+	local logDir=`dirname $currLogFile`
+	local baseLogName=`basename $currLogFile`
+	local flow=`ksystemvariable | awk '/ECOTS_SD_STEP/{print $2}'`
+
+	>"$conf"
+	append "ksystemvariable --add ECOTS_SD_STEP $flow" 
+	append "kcd $currKPWD"
+	append "kproset $currPRO"
+	append "kselectsocket $currSOC"
+	append "ksplogstart $logDir ${baseLogName%-$currSESN*}"
+}
+
+function append {
+	echo "$@" >> "$conf"
+}
+
+function errOut {
+	#must begin with "Command" for calling from poll.py 
+	echo -e "\nCommand exits due to :\n\t$@"
+	exit 1
+}
+
+function usage {
+	local self=`basename $0`
 	echo "Usage:"
 	echo "	$self s -> Save current settings"
 	echo "	$self r -> Recover saved settings"
-	echo "	$self e -> Erase saved settings"
 	echo "	$self t -> Check time stamp of current datalogs"
+	exit 1
+}
+
+function dispTime {
+	local fname=`ksplogstatus | tail -n -1 | awk '{print $5}'`
+	[ -f $fname ] || errOut "$currLogFile cannot be found"
+	local last=`date +%s -r $fname`
+	local curr=`date +%s`
+	local pastime=$((curr-last))
+	local pastHrs=`expr $pastime \/ 3600 `
+	local pastMin=`expr \( $pastime \/ 60 \) \% 60 `
+	local pastSec=`expr $pastime \% 60 `
+	echo PAST $pastHrs"h"$pastMin"m"$pastSec"s" $fname
 }
 
 function testEnv {
 	kpwd &> /dev/null
-	if [[ $? != "0" ]]; then
-		echo Kei System Software is NOT running
-		exit 1
-	fi
 }
 
-function saveEssential() {
-	cmd="$1"
-	if [ "$cmd" == "kcd" ];then
-		echo "$cmd" `kpwd | tail -n 1` >> $conf
-	else
-		echo "$cmd" `"$cmd" | tail -n 1` >> $conf
-	fi
+function recover {
+	[ -f "$conf" ] || errOut "$conf cannot be found"
+	source "$conf"
 }
 
-function saveSysVar() {
-	var="$1"
-	rslt=`ksystemvariable | grep "$var" -A 1`
-	key_value=($rslt)
-	if [ "${#key_value[@]}" != "0" ]; then
-		echo ksystemvariable --add "${key_value[0]}" "${key_value[1]}">> $conf
-	fi
-}
-
-function saveLogSetting() {
-	logfile=`ksplogstatus | awk -F '|' 'END{print $3}'`
-	if [ "$logfile" != "" ];then
-		logdir=`dirname $logfile`
-		logbase=`basename $logfile | sed 's/\-[[:alpha:]]\+_1\-.*txt//g'`
-		echo ksplogstart $logdir $logbase >> $conf
-	fi
-}
-
-#---------------------------------------------------------------------------------------
-
-[ $# -eq "0" ] && help && exit 1
+############################### Execution starts ##################################
+[ $# -gt 0 ] || usage 
 testEnv || exit 1
 
-if [[ $1 == 's' ]]; then
-	if [ -f $conf ]; then
-		echo "		Skip saving as file exists (T_T)"
-	else
-		>"$conf"
-	
-		saveEssential kcd
-		saveEssential kproset
-		saveEssential kselectsocket
-	
-		saveSysVar ECOTS_SD_STEP
-		saveSysVar ECOTS_SD_DATALOGDISP
-		
-		saveLogSetting
-		
-		echo "		Saved current program setting (^_^)"
-	fi
-
-elif [[ $1 == 'r' ]]; then
-	if [ -f $conf ]; then
-		echo "Settings to be recovered:"
-		echo "    " `awk '/kcd/{print $2}' $conf`
-		echo "    " `awk '/kproset/{print $2}' $conf`
-
-		echo -n "Are you sure to proceed ? (y/n) : "
-		read yn
-		[[ $yn == 'y' ]] && source $conf && rm -f $conf > /dev/null || exit
-	else
-		echo "		NOT saved yet, please (Orz)"
-	fi
-
-elif [[ $1 == 'e' ]]; then
-	echo -n "Are you sure to erase saved setting ? (y/n) : "
-	read yn
-	[[ $yn == 'y' ]] && rm -f $conf || exit
-
-elif [[ $1 == 't' ]]; then
-	ksplogstatus | awk -F '|'  'END{print $3}' | xargs ls -l
-else
-	echo "Wrong arguments !"
-	help
-fi
-####################### END #######################
+case "$1" in
+	s ) saveToFile ;; 
+	r ) recover    ;; 
+	t ) dispTime   ;; 
+	* ) usage      ;; 
+esac
