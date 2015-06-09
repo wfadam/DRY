@@ -8,6 +8,8 @@ set -u
 # Rev 0.30	22:03pm, 10/02/2014
 # Rev 0.31	12:30pm, 12/30/2014
 #		Can run multiple flows in order
+# Rev 0.32	01:47pm, 06/09/2015
+#		Can run flows from the released tp.zip
 
 function errOut {
 	>&2 echo -e "\nStops due to :\n\t$@"
@@ -20,7 +22,9 @@ function getFlow {
 		flowName="$1"
 	else
 		flowName=`echo "$1" | tr 'a-z' 'A-Z'`
+		[[ "$flowName" =~ "^[A-Z]{2}$" ]] || errOut "Wrong flow name $flowName"
 	fi
+	echo Identified $flowName
 }
 
 function isOffline {
@@ -90,13 +94,14 @@ function readyToStart {
 
 function getProName {
 	verify "$PWD"
-	local baseName=`basename "$PWD"`
-	local socFile=`ls $baseName*.soc`
+	local bName=`basename "$PWD"`
+	local socFile=`ls $bName*.soc`
 	[[ 1 -eq `echo "$socFile" | wc -w` ]] || errOut "less/more than one .soc file found \n$socFile"
 
 	verify "$socFile"
 	proName=${socFile%.*}
 	[ -f javaapi/"$proName".class  ] || errOut "missing javaapi/ or $proName.class !!"
+	[[ "$proName" =~ "^[tw][a-z0-9]{6}af[a-z0-9]{2}_[a-z0-9]{2}(en[a-z0-9])?$" ]] || errOut "illegal program name $proName"
 }
 
 function verify {
@@ -134,33 +139,77 @@ function preCheck {
 
 function flowLoop {
 	local cnt=1;
-	for fl in "$@";
+	while [[ $# > 0 ]]
 	do
-		getFlow "$fl"
-		setSysVar
-		setDlog "$cnt"
-		startPro || errOut "test program is halted by command or error"
-		((cnt++))
+	case "$1" in
+		-f )
+			shift		# skip the item after "-f"
+			shift ;;	# prepare for the next item for check
+		*)
+			getFlow "$1"
+			setSysVar
+			setDlog "$cnt"
+			startPro || errOut "test program is halted by command or error"
+			((cnt++))
+			shift ;;
+		esac
 	done;
+}
+
+function unzipTp {
+	local zipName="$1"
+
+	[[ "$zipName" =~ ".*_tp.zip$" ]] || errOut "Wrong _tp.zip file name $zipName"
+	readonly tgzName=`unzip -t "$zipName" | grep '[tw][0-9a-z]\{6\}af[0-9a-z]\{2\}_[0-9a-z]\{2\}\(en[0-9a-z]\)\?.tgz' -o`
+	[[ -z "$tgzName" ]] && errOut "can not find tgz file or program name is illegal"
+
+	readonly baseName=`echo "$tgzName" | sed 's/af[0-9a-z]\{2\}_[0-9a-z]\{2\}\(en[0-9a-z]\)\?.tgz//g'`
+	[[ -z "$baseName" ]] && errOut "can not parse [tw]XXXXXX from tgz file"
+
+	#[[ -d "$baseName" ]] && errOut "$baseName/ exists. Please delete it first"
+
+	unzip -p "$zipName" | tar xzf - 
+	readonly binDir="$PWD"/"$baseName"
 }
 
 function usage {
 cat << EOF
 Usage:
-    $0          : run FH as default
-    $0 CC SH FH : run CC, SH, FH in order 
+  # run FH as default
+      \$ $0         			
+  
+  # run CC, SH, FH in order 
+      \$ $0 CC SH FH			
+  
+  # run CC and SH flow on binary tp.zip
+      \$ $0 CC SH -f [any]_tp.zip	
 EOF
 exit 1;
 }
 
+function parseArg {
+	while [[ $# > 0 ]]
+	do
+	case "$1" in
+		-h )
+			usage ;; 
+		-f )	# run program from binary release
+			shift
+			unzipTp "$1" 
+			cd "$binDir" ;;
+		* )
+			shift ;;
+	esac
+	done
+}
+
 ################ Start Execution ##################
-case "$1" in
-	-h ) usage ;; 
-esac
+
+parseArg $@
 preCheck
 getProName
 setCpnl
-flowLoop "$@" &
+flowLoop $@ &
 
 ####################### EOF #######################
 
