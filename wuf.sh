@@ -3,9 +3,10 @@ set -u
 
 # The script is for program setup
 # Author: Feng WU
-# Rev 0.1	11:04pm, 7/31/2013, Kunshan, China
-# Rev 0.2	05:04pm, 12/02/2013, Shanghai, China
-# Rev 0.3	22:03pm, 10/02/2014, Kunshan, China
+# Rev 0.10	11:04pm, 7/31/2013
+# Rev 0.20	05:04pm, 12/02/2013
+# Rev 0.30	22:03pm, 10/02/2014
+# Rev 0.31	12:30pm, 12/30/2014
 #		Can run multiple flows in order
 
 function errOut {
@@ -118,6 +119,7 @@ function clearPro {
 }
 
 function startPro {
+	clearPro
 	kprostart & local pid=$!
 	echo "Test program is started ... "
 	wait $pid
@@ -158,7 +160,6 @@ esac
 preCheck
 getProName
 setCpnl
-clearPro
 flowLoop "$@" &
 
 ####################### EOF #######################
