@@ -10,6 +10,14 @@ set -u
 #		Can run multiple flows in order
 # Rev 0.32	01:47pm, 06/09/2015
 #		Can run flows from the released tp.zip
+# Rev 0.33	02:15pm, 06/12/2015
+#		Support legacy and new program names ( before , 1Z and beyond )
+
+readonly sep='af'
+readonly baseEx='[tw][a-z0-9]{6}'
+readonly oldEx='[a-z0-9]{2}_[a-z0-9]{2}(en[a-z0-9])?'
+readonly newEx='[a-z0-9]{4}(en[a-z0-9])?_[a-z0-9]{4}'
+readonly proEx='\<'${baseEx}${sep}'('${oldEx}'|'${newEx}')\>'
 
 function errOut {
 	>&2 echo -e "\nStops due to :\n\t$@"
@@ -92,16 +100,20 @@ function readyToStart {
 	[ 'y' == $yn ]
 }
 
+function isNameValid {
+	[[ "$1" =~ "$proEx" ]]
+}
+
 function getProName {
 	verify "$PWD"
 	local bName=`basename "$PWD"`
 	local socFile=`ls $bName*.soc`
 	[[ 1 -eq `echo "$socFile" | wc -w` ]] || errOut "less/more than one .soc file found \n$socFile"
-
 	verify "$socFile"
 	proName=${socFile%.*}
+	isNameValid "$proName" || errOut "illegal program name $proName"
 	[ -f javaapi/"$proName".class  ] || errOut "missing javaapi/ or $proName.class !!"
-	[[ "$proName" =~ "^[tw][a-z0-9]{6}af[a-z0-9]{2}_[a-z0-9]{2}(en[a-z0-9])?$" ]] || errOut "illegal program name $proName"
+	echo -e "\nAbout to execute $PWD/javaapi/"$proName".class\n"
 }
 
 function verify {
@@ -158,17 +170,14 @@ function flowLoop {
 
 function unzipTp {
 	local zipName="$1"
+	[[ "$zipName" =~ ".*_tp.zip$" ]] || errOut "expecting *_tp.zip but not $zipName"
 
-	[[ "$zipName" =~ ".*_tp.zip$" ]] || errOut "Wrong _tp.zip file name $zipName"
-	readonly tgzName=`unzip -t "$zipName" | grep '[tw][0-9a-z]\{6\}af[0-9a-z]\{2\}_[0-9a-z]\{2\}\(en[0-9a-z]\)\?.tgz' -o`
-	[[ -z "$tgzName" ]] && errOut "can not find tgz file or program name is illegal"
-
-	readonly baseName=`echo "$tgzName" | sed 's/af[0-9a-z]\{2\}_[0-9a-z]\{2\}\(en[0-9a-z]\)\?.tgz//g'`
-	[[ -z "$baseName" ]] && errOut "can not parse [tw]XXXXXX from tgz file"
-
-	#[[ -d "$baseName" ]] && errOut "$baseName/ exists. Please delete it first"
+	proName=`unzip -t "$zipName" | egrep -o "${proEx}.tgz" | egrep -o "${proEx}"`
+	isNameValid "$proName" || errOut "illegal program name $proName in *_tp.zip"
 
 	unzip -p "$zipName" | tar xzf - 
+
+	readonly baseName=`echo "$proName" | egrep -o "${baseEx}"`
 	readonly binDir="$PWD"/"$baseName"
 }
 
@@ -178,13 +187,27 @@ Usage:
   # run FH as default
       \$ $0         			
   
-  # run CC, SH, FH in order 
-      \$ $0 CC SH FH			
+  # run multiple flows in order
+      \$ $0 SH fh			
   
-  # run CC and SH flow on binary tp.zip
-      \$ $0 CC SH -f [any]_tp.zip	
+  # run multiple flows on binary tp.zip
+      \$ $0 sh fh -f *_tp.zip	
+
+  # Program name should comply with regex
+	$proEx
+
+  # Examples of valid/invalid programs
+	txxxxxxafxx_xx		<- valid
+	wxxxxxxafxx_xx		<- valid
+	txxxxxxafxx_xxenx	<- valid
+	txxxxxxafxxxx_768a	<- valid
+	txxxxxxafxxxxenx_768a	<- valid
+	txxxxxxfhxx_xx		<- invalid
+    Legend:
+        x: a digit or lowercase letter
+
 EOF
-exit 1;
+exit 0;
 }
 
 function parseArg {
@@ -206,8 +229,8 @@ function parseArg {
 ################ Start Execution ##################
 
 parseArg $@
-preCheck
 getProName
+preCheck
 setCpnl
 flowLoop $@ &
 
