@@ -19,7 +19,7 @@ public class DungeonGame {
         static Integer[] xy = {0, 0};
 
         public static void main(String...args){
-                System.out.println( "=======================> Dungoen Map" );
+                System.out.println( "=======================> Dungeon Map" );
                 for ( int[] row : dungeon ) {
                         System.out.println( Arrays.toString(row) );
                 }
