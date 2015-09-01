@@ -12,8 +12,10 @@ set -u
 #		Can run flows from the released tp.zip
 # Rev 0.33	02:15pm, 06/12/2015
 #		Support legacy and new program names ( before , 1Z and beyond )
+# Rev 0.34	09/1/2015
+#		Support new naming rule for SH program: tXXXXXXSHXXXX_768X
 
-readonly sep='af'
+readonly sep='(af|sh)'
 readonly baseEx='[tw][a-z0-9]{6}'
 readonly oldEx='[a-z0-9]{2}_[a-z0-9]{2}(en[a-z0-9])?'
 readonly newEx='[a-z0-9]{4}(en[a-z0-9])?_[a-z0-9]{4}'
@@ -202,7 +204,8 @@ Usage:
 	txxxxxxafxx_xxenx	<- valid
 	txxxxxxafxxxx_768a	<- valid
 	txxxxxxafxxxxenx_768a	<- valid
-	txxxxxxfhxx_xx		<- invalid
+	txxxxxxshxxxx_768a	<- valid
+	txxxxxxqhxxxx_768a	<- invalid
     Legend:
         x: a digit or lowercase letter
 
@@ -235,4 +238,3 @@ setCpnl
 flowLoop $@ &
 
 ####################### EOF #######################
-
