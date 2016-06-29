@@ -1,3 +1,5 @@
+"use strict";
+
 var phantom = require('phantom');
 //var url = 'http://dynamics.sandisk.com/Dynamics/main.aspx?etc=10061&id=%7B94483E45-051C-E611-80D7-005056AB451F%7D&newWindow=true&pagetype=entityrecord'
 //var url = 'http://dynamics.sandisk.com/Dynamics/main.aspx?etc=10061&extraqs=&histKey=420956884&id=%7b1B91F4D0-0727-E611-80D8-005056AB4520%7d&newWindow=true&pagetype=entityrecord#622328925'
@@ -19,7 +21,7 @@ client.blpop('list', 0, function(err, value) {
 
     console.log(value[1])
 
-    var url = value[1]
+    var url = value[1].trim()
     phantom.create()
         .then(instance => {
             phInstance = instance;
@@ -105,9 +107,12 @@ function getBrief() {
 
         console.log(JSON.stringify(tcrJson, null, 2))
 
+	var fdArr = []
         for (var key in tcrJson) {
-            client.hset(tcrJson.TCR, key, tcrJson[key], redis.print);
+		fdArr.push( key )
+		fdArr.push( tcrJson[key] )
         }
+        client.hmset(tcrJson.TCR, fdArr, redis.print);
         client.quit();
     })
 
