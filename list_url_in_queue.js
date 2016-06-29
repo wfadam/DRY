@@ -120,9 +120,7 @@ function getQueue(withinQueue) {
             //console.log(JSON.stringify(tcrJson, null, 2))
             console.log(tcrArr)
 
-            for (var idx in tcrArr) {
-                client.rpush('list', tcrArr[idx], redis.print);
-            }
+	    client.rpush('list', tcrArr, redis.print);
             client.quit();
         })
 
