@@ -1,14 +1,14 @@
 #!/bin/env bash
 set -u
 
-#  DESCRIPTION:  a bash script that packages up Advantest Test Programs for program release.
+#  DESCRIPTION:  a bash script that packages up Test Programs for program release.
 #
-#  USAGE: ./release.sh
+#  USAGE: ./release
 #    - be sure to execute this script in the same directory as the tXXXXXX/
 #
 #  RELEASE NOTES:
 #	00 (01/16/12): Initial Release
-#	22 (01/24/17): [FW] Refactor to unify the logic for both T5773 and T5831
+#	22 (01/25/17): [FW] Refactor to unify the logic for both T73 and T31
 
 function errOut {
         echo -e "${FUNCNAME[0]} : \n\t$1\n" 1>&2;
