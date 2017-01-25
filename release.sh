@@ -90,8 +90,8 @@ function genSrcZip {
 
 function checkDefly {
 	LC_ALL=C find "$tXXXXXX" -iregex '.*.\(java\|asc\)'  \
-  |	xargs grep -Pirn --color 'defly|4db' \
-  && errOut "Forgot to remove the temporary code ?";
+	| xargs grep -Pirn --color 'defly|4db' \
+	&& errOut "Forgot to remove the temporary code ?";
 }
 
 function run {
