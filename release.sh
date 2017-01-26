@@ -8,7 +8,7 @@ set -u
 #
 #  RELEASE NOTES:
 #	00 (01/16/12): Initial Release
-#	22 (01/24/17): [FW] Refactor to unify the logic for both T5773 and T5831
+#	22 (01/26/17): [FW] Refactor to unify the logic for both T73 and T31
 
 function errOut {
         echo -e "${FUNCNAME[0]} : \n\t$1\n" 1>&2;
@@ -71,7 +71,7 @@ function checkJava {
 
 function checkPattern {
 	checkBalance '${file/.asc/.mpa}' \
-	`find "$tXXXXXX" -name "*.asc" | xargs grep -l '^MPAT '`;
+	`find "$tXXXXXX" -name "*.asc" | xargs -d '\n' grep -l '^MPAT '`;
 }
 
 function genTpZip {
@@ -91,7 +91,7 @@ function genSrcZip {
 
 function checkDefly {
 	LC_ALL=C find "$tXXXXXX" -iregex '.*.\(java\|asc\)'  \
-	| xargs grep -Pirn --color 'defly|4db' \
+	| xargs -d '\n' grep -Pirn --color 'defly|4db' \
 	&& errOut "Forgot to remove the temporary code ?";
 }
 
@@ -99,7 +99,7 @@ function run {
 	i=1;
 	total="$#";
 	for step in "$@"; do
-		echo "$i/$total: $step";
+		echo "$i/$total: $step" 1>&2;
 		eval "$step";
 		i=$((i+1));
 	done;
