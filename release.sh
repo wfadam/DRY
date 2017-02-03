@@ -9,6 +9,7 @@ set -u
 #  RELEASE NOTES:
 #	00 (01/16/12): Initial Release
 #	22 (01/26/17): [FW] Refactor to unify the logic for both T73 and T31
+#	23 (02/03/17): [FW] bugfix to avoid archiving large zip file
 
 function errOut {
         echo -e "${FUNCNAME[0]} : \n\t$1\n" 1>&2;
@@ -82,11 +83,13 @@ function genTpZip {
 	tar czf "$proName".tgz "$tXXXXXX";
 	zip -ry "$tpDir".zip "$proName".tgz &> /dev/null;
 	rm -rf "$tmpDir";
+	cd "$zipDir" &> /dev/null
 }
 
 function genSrcZip {
 	make clean -C "$zipDir"/"$tXXXXXX" &> /dev/null;
-	zip -ry "$zipDir".zip "$zipDir" &> /dev/null;
+	cd `dirname "$zipDir"` && zip -ry "$zipDir".zip `basename "$zipDir"` &> /dev/null;
+	cd "$zipDir" &> /dev/null
 }
 
 function checkDefly {
@@ -108,8 +111,8 @@ function run {
 ##### Execution starts here #####
 run \
 checkSoc \
-checkDefly \
 checkProRev \
+checkDefly \
 checkJava \
 checkPattern \
 genTpZip \
