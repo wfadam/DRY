@@ -8,8 +8,8 @@ set -u
 #
 #  RELEASE NOTES:
 #	00 (01/16/12): Initial Release
-#	22 (01/26/17): [FW] Refactor to unify the logic for both T73 and T31
-#	23 (02/03/17): [FW] bugfix to avoid archiving large zip file
+#	22 (02/08/17): [FW] Refactor to unify the logic for both T73 and T31
+#	23 (02/13/17): [FW] Bugfix to narrow down search region in source code for 'defly|4db'
 
 function errOut {
         echo -e "${FUNCNAME[0]} : \n\t$1\n" 1>&2;
@@ -55,9 +55,9 @@ function checkBalance {
 		eval ls "$xfr" &> /dev/null;
 		[[ $? == 0 ]] && continue;
 		isBad=$((isBad+1));
-		echo "Missing the binary of $file";
+		echo -e "$file"
 	done;
-	[[ $isBad == 0 ]] || errOut "Missing $isBad binaries\n\tOR\n\tAbove source files are NOT needed";
+	[[ $isBad == 0 ]] || errOut "Forgot to compile above $isBad source files\n  OR\n\tClean the unused sources by command\n\trelease | xargs rm";
 }
 
 function checkProRev {
@@ -81,6 +81,7 @@ function genTpZip {
 
 	cd "$tmpDir" && del `mustDelList` &> /dev/null;
 	tar czf "$proName".tgz "$tXXXXXX";
+	rm -f "$tpDir".zip;
 	zip -ry "$tpDir".zip "$proName".tgz &> /dev/null;
 	rm -rf "$tmpDir";
 	cd "$zipDir" &> /dev/null
@@ -88,13 +89,13 @@ function genTpZip {
 
 function genSrcZip {
 	make clean -C "$zipDir"/"$tXXXXXX" &> /dev/null;
-	cd `dirname "$zipDir"` && zip -ry "$zipDir".zip `basename "$zipDir"` &> /dev/null;
+	cd `dirname "$zipDir"` && rm -f "$zipDir".zip && zip -ry "$zipDir".zip `basename "$zipDir"` &> /dev/null;
 	cd "$zipDir" &> /dev/null
 }
 
 function checkDefly {
 	LC_ALL=C find "$tXXXXXX" -iregex '.*.\(java\|asc\)'  \
-	| xargs -d '\n' grep -Pirn --color 'defly|4db' \
+	| xargs -d '\n' grep -Pirn --color '(\/\/|;).*(defly|4db)' \
 	&& errOut "Forgot to remove the temporary code ?";
 }
 
