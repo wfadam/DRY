@@ -1,0 +1,125 @@
+WITH
+    100 AS mr_lmt,
+    1 AS sig_lmt,
+    0 AS date_ofst,
+    11 AS date_window,
+    dates AS
+    (
+        SELECT DISTINCT date
+        FROM pk
+        ORDER BY date DESC
+        LIMIT date_ofst, date_window
+    ),
+    mrs AS
+    (
+        SELECT
+            date,
+            symbol,
+            lagInFrame(mr, 9) OVER (PARTITION BY symbol ORDER BY date ASC) AS `9_mr`,
+            lagInFrame(mr, 8) OVER (PARTITION BY symbol ORDER BY date ASC) AS `8_mr`,
+            lagInFrame(mr, 7) OVER (PARTITION BY symbol ORDER BY date ASC) AS `7_mr`,
+            lagInFrame(mr, 6) OVER (PARTITION BY symbol ORDER BY date ASC) AS `6_mr`,
+            lagInFrame(mr, 5) OVER (PARTITION BY symbol ORDER BY date ASC) AS `5_mr`,
+            lagInFrame(mr, 4) OVER (PARTITION BY symbol ORDER BY date ASC) AS `4_mr`,
+            lagInFrame(mr, 3) OVER (PARTITION BY symbol ORDER BY date ASC) AS `3_mr`,
+            lagInFrame(mr, 2) OVER (PARTITION BY symbol ORDER BY date ASC) AS `2_mr`,
+            lagInFrame(mr, 1) OVER (PARTITION BY symbol ORDER BY date ASC) AS `1_mr`,
+            CAST((100 * sum(m)) / count(), 'int') AS mr
+        FROM
+        (
+            SELECT
+                date,
+                symbol,
+                (B0 > S0) AND ((B0 + B1) > (S0 + S1)) AS m
+            FROM pk
+            WHERE date IN (
+                SELECT date
+                FROM dates
+            )
+        )
+        GROUP BY
+            date,
+            symbol
+    )
+SELECT
+    symbol,
+    `9_mr`,
+    `8_mr`,
+    `7_mr`,
+    `6_mr`,
+    `5_mr`,
+    `4_mr`,
+    `3_mr`,
+    `2_mr`,
+    `1_mr`,
+    mr,
+    formatDateTime(date, '%m-%d') AS md,
+    ((`2_mr` >= mr_lmt) + (`1_mr` >= mr_lmt)) + (mr >= mr_lmt) AS sigc
+FROM mrs
+WHERE (date = (
+    SELECT max(date)
+    FROM dates
+)) AND (sigc = sig_lmt)
+
+----
+
+WITH
+    100 AS mr_lmt,
+    0 AS sig_lmt,
+    0 AS date_ofst,
+    11 AS date_window,
+    dates AS
+    (
+        SELECT DISTINCT date
+        FROM pk
+        ORDER BY date DESC
+        LIMIT date_ofst, date_window
+    ),
+    mrs AS
+    (
+        SELECT
+            date,
+            any(symbol) AS symbol,
+            lagInFrame(mr, 9) OVER (PARTITION BY symbol ORDER BY date ASC) AS `9_mr`,
+            lagInFrame(mr, 8) OVER (PARTITION BY symbol ORDER BY date ASC) AS `8_mr`,
+            lagInFrame(mr, 7) OVER (PARTITION BY symbol ORDER BY date ASC) AS `7_mr`,
+            lagInFrame(mr, 6) OVER (PARTITION BY symbol ORDER BY date ASC) AS `6_mr`,
+            lagInFrame(mr, 5) OVER (PARTITION BY symbol ORDER BY date ASC) AS `5_mr`,
+            lagInFrame(mr, 4) OVER (PARTITION BY symbol ORDER BY date ASC) AS `4_mr`,
+            lagInFrame(mr, 3) OVER (PARTITION BY symbol ORDER BY date ASC) AS `3_mr`,
+            lagInFrame(mr, 2) OVER (PARTITION BY symbol ORDER BY date ASC) AS `2_mr`,
+            lagInFrame(mr, 1) OVER (PARTITION BY symbol ORDER BY date ASC) AS `1_mr`,
+            CAST((100 * sum(m)) / count(), 'int') AS mr
+        FROM
+        (
+            SELECT
+                date,
+                symbol,
+                (B0 > S0) AND ((B0 + B1) > (S0 + S1)) AS m
+            FROM pk
+            WHERE (date IN (
+                SELECT date
+                FROM dates
+            )) AND (symbol = 'sh600185')
+        )
+        GROUP BY date
+    )
+SELECT
+    symbol,
+    `9_mr`,
+    `8_mr`,
+    `7_mr`,
+    `6_mr`,
+    `5_mr`,
+    `4_mr`,
+    `3_mr`,
+    `2_mr`,
+    `1_mr`,
+    mr,
+    formatDateTime(date, '%m-%d') AS md,
+    ((`2_mr` >= mr_lmt) + (`1_mr` >= mr_lmt)) + (mr >= mr_lmt) AS sigc
+FROM mrs
+WHERE (date = (
+    SELECT max(date)
+    FROM dates
+)) AND (sigc >= sig_lmt)
